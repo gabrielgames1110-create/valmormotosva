@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="ds/styles.css">
+  <script src="ds/bundle.js"></script>
+  <style>
+    html:root { --color-accent: #e10814; }
+  </style>
+</helmet>
+<div ref="{{ rStage }}" role="img" aria-label="Valmor Motos: compra, vende e troca motos e automóveis" style="position:relative;width:100%;height:100%">
+  <div ref="{{ rGlow }}" aria-hidden="true" style="position:absolute;left:50%;top:4%;width:60%;height:96%;border-radius:50%;background:radial-gradient(closest-side, color-mix(in srgb, var(--color-accent) 42%, transparent), transparent);opacity:0.3;pointer-events:none"></div>
+  <canvas ref="{{ rCanvas }}" aria-hidden="true" style="position:absolute;left:-12%;top:-14%;width:124%;height:128%;pointer-events:none"></canvas>
+  <img ref="{{ rG3 }}" src="assets/valmor/piloto-rastro.png" alt="" draggable="false" style="position:absolute;left:61.96%;top:0;width:38.04%;height:100%;opacity:0;pointer-events:none;transform-origin:19% 85%">
+  <img ref="{{ rG2 }}" src="assets/valmor/piloto-rastro.png" alt="" draggable="false" style="position:absolute;left:61.96%;top:0;width:38.04%;height:100%;opacity:0;pointer-events:none;transform-origin:19% 85%">
+  <img ref="{{ rG1 }}" src="assets/valmor/piloto-rastro.png" alt="" draggable="false" style="position:absolute;left:61.96%;top:0;width:38.04%;height:100%;opacity:0;pointer-events:none;transform-origin:19% 85%">
+  <img ref="{{ rRider }}" src="assets/valmor/piloto.png" alt="" draggable="false" style="position:absolute;left:61.96%;top:0;width:38.04%;height:100%;pointer-events:none;transform-origin:19% 85%">
+  <img ref="{{ rValmor }}" src="assets/valmor/valmor.png" alt="" draggable="false" style="position:absolute;left:0;top:11.19%;width:64.54%;height:45.12%;pointer-events:none">
+  <div ref="{{ rMotos }}" style="position:absolute;left:5.03%;top:57.55%;width:54.36%;height:17.23%;pointer-events:none;transform-origin:0 100%">
+    <img src="assets/valmor/motos.png" alt="" draggable="false" style="position:absolute;inset:0;width:100%;height:100%">
+    <div ref="{{ rSheen }}" aria-hidden="true" style="position:absolute;inset:0;mask-image:url(assets/valmor/motos.png);mask-size:100% 100%;mask-repeat:no-repeat;background-image:linear-gradient(100deg, transparent 40%, color-mix(in srgb, var(--color-neutral-100) 85%, transparent) 50%, transparent 60%);background-size:300% 100%;background-repeat:no-repeat;background-position:100% 0"></div>
+  </div>
+  <img ref="{{ rS1 }}" src="assets/valmor/slogan-1.png" alt="" draggable="false" style="position:absolute;left:6.13%;top:76.91%;width:52.02%;height:6.75%;pointer-events:none">
+  <img ref="{{ rS2 }}" src="assets/valmor/slogan-2.png" alt="" draggable="false" style="position:absolute;left:9.2%;top:83.48%;width:45.89%;height:8.17%;pointer-events:none">
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:520,&quot;height&quot;:360},&quot;animada&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  rStage = React.createRef(); rCanvas = React.createRef(); rGlow = React.createRef(); rValmor = React.createRef(); rMotos = React.createRef(); rSheen = React.createRef();
+  rS1 = React.createRef(); rS2 = React.createRef(); rRider = React.createRef(); rG1 = React.createRef(); rG2 = React.createRef(); rG3 = React.createRef();
+  reduz = typeof window !== 'undefined' && !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  t0 = null; visivel = false; hist = []; parts = []; linhas = []; ciclo = -1; pousou = false; limpo = true; mascara = '';
+  RIDER = { l: 0.6196, w: 0.3804 }; VALMOR = { l: 0, w: 0.6454 }; RODA = { x: 0.6843, y: 0.98 };
+  INTRO = 1.7; CICLO = 6.5; BOOST_EM = 2.6; BOOST = 1.3;
+
+  parado() { return this.reduz || this.props.animada === false; }
+
+  componentDidMount() {
+    this.lerCores();
+    if (this.parado()) this.estadoFinal(); else this.aplicar(0);
+    const st = this.rStage.current;
+    if (st && 'IntersectionObserver' in window) { this.io = new IntersectionObserver(([e]) => { this.visivel = e.isIntersecting; }); this.io.observe(st); }
+    else this.visivel = true;
+    this.seguro = setTimeout(() => { if (this.t0 == null) this.visivel = true; }, 3000);
+    this.raf = requestAnimationFrame(this.tick);
+  }
+  componentDidUpdate(pp) {
+    if (pp.animada === this.props.animada) return;
+    if (this.parado()) this.estadoFinal();
+    else { this.t0 = null; this.ciclo = -1; this.pousou = false; this.hist = []; this.aplicar(0); }
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); clearTimeout(this.seguro); if (this.io) this.io.disconnect(); }
+
+  lerCores() {
+    const st = this.rStage.current, cs = st ? getComputedStyle(st) : null, v = (n, d) => (cs && cs.getPropertyValue(n).trim()) || d;
+    this.cVermelho = v('--color-accent', '#e10814'); this.cBranco = v('--color-neutral-100', '#f2f1f1'); this.cPo = v('--color-neutral-400', '#9b9898');
+  }
+
+  tick = (now) => {
+    this.raf = requestAnimationFrame(this.tick);
+    if (!this.visivel || this.parado()) return;
+    if (this.t0 == null) this.t0 = now;
+    this.aplicar((now - this.t0) / 1000);
+  };
+
+  aplicar(t) {
+    const st = this.rStage.current; if (!st) return;
+    const SW = st.clientWidth || 1, SH = st.clientHeight || 1, R = this.RIDER;
+    const cl = (v) => Math.max(0, Math.min(1, v)), seg = (a, b) => cl((t - a) / (b - a));
+    const eo = (p) => 1 - Math.pow(1 - p, 3), sm = (p) => p * p * (3 - 2 * p);
+    const back = (p) => 1 + 2.4 * Math.pow(p - 1, 3) + 1.4 * Math.pow(p - 1, 2);
+    let x = 0, y = 0, rot = 0, sx = 1, sy = 1, rastro = 0, op = 1, brilho = 0.3;
+
+    const pv = seg(0.1, 1.15);
+    if (pv < 1) {
+      x = -0.8 * SW * (1 - pv);
+      y = SH * (0.14 * (1 - pv) - 1.2 * pv * (1 - pv));
+      rot = -16 * (1 - pv) * (1 - pv) + 10 * pv * (1 - pv);
+      rastro = Math.sin(Math.PI * pv);
+      op = cl(pv * 7);
+    }
+    if (!this.pousou && t >= 1.15) { this.pousou = true; this.poeira(t, SW, SH, 0, 26, true); }
+    const pq = seg(1.15, 1.45);
+    if (pq > 0 && pq < 1) { const k = Math.sin(Math.PI * pq); sy = 1 - 0.07 * k; sx = 1 + 0.035 * k; brilho += 0.4 * k; }
+
+    const tl = t - this.INTRO;
+    let bump = 0, pb = -1;
+    if (tl > 0) {
+      const amp = sm(cl(tl / 0.9)), ciclo = Math.floor(tl / this.CICLO), c = tl - ciclo * this.CICLO;
+      y += Math.sin(tl * 1.8) * 0.013 * SH * amp;
+      rot += Math.sin(tl * 1.8 + 0.9) * 1.4 * amp;
+      if (c >= this.BOOST_EM && c < this.BOOST_EM + this.BOOST) {
+        pb = (c - this.BOOST_EM) / this.BOOST;
+        bump = pb < 0.26 ? eo(pb / 0.26) : 1 - sm((pb - 0.26) / 0.74);
+        if (this.ciclo !== ciclo) { this.ciclo = ciclo; this.boost(t, SW, SH); }
+      }
+      x += 0.055 * SW * bump; rot -= 8 * bump; rastro = Math.max(rastro, bump); brilho += 0.5 * bump;
+    }
+
+    const rider = this.rRider.current;
+    if (rider) { rider.style.transform = 'translate(' + x.toFixed(1) + 'px, ' + y.toFixed(1) + 'px) rotate(' + rot.toFixed(2) + 'deg) scale(' + sx.toFixed(3) + ', ' + sy.toFixed(3) + ')'; rider.style.opacity = op.toFixed(3); }
+
+    this.hist.push({ t, x, y, rot });
+    while (this.hist.length > 2 && this.hist[0].t < t - 0.4) this.hist.shift();
+    [this.rG1, this.rG2, this.rG3].forEach((ref, i) => {
+      const el = ref.current; if (!el) return;
+      const alvo = t - 0.055 * (i + 1); let h = this.hist[0];
+      for (let j = this.hist.length - 1; j >= 0; j--) if (this.hist[j].t <= alvo) { h = this.hist[j]; break; }
+      const a = rastro * [0.5, 0.3, 0.15][i] * op;
+      el.style.opacity = a.toFixed(3);
+      if (a > 0.002) el.style.transform = 'translate(' + (h.x - 0.014 * SW * (i + 1) * rastro).toFixed(1) + 'px, ' + h.y.toFixed(1) + 'px) rotate(' + h.rot.toFixed(2) + 'deg)';
+    });
+
+    const gl = this.rGlow.current;
+    if (gl) { gl.style.opacity = Math.min(0.95, brilho * op).toFixed(3); gl.style.transform = 'translate(' + x.toFixed(1) + 'px, ' + y.toFixed(1) + 'px)'; }
+
+    const vm = this.rValmor.current;
+    if (vm) {
+      const borda = ((R.l * SW + x + 0.22 * R.w * SW) - this.VALMOR.l * SW) / (this.VALMOR.w * SW) * 100;
+      const m = borda >= 106 ? 'none' : 'linear-gradient(90deg, black ' + (borda - 7).toFixed(1) + '%, transparent ' + borda.toFixed(1) + '%)';
+      if (m !== this.mascara) { vm.style.maskImage = m; vm.style.webkitMaskImage = m; this.mascara = m; }
+    }
+
+    const mo = this.rMotos.current;
+    if (mo) {
+      const pm = seg(0.55, 1.15), e = back(pm);
+      let skew = -18 * (1 - e), tx = -22 * (1 - e);
+      if (pb >= 0) { const j = Math.exp(-5 * pb) * Math.cos(11 * pb); skew -= 9 * j; tx += 1.4 * j; }
+      mo.style.transform = 'translateX(' + tx.toFixed(2) + '%) skewX(' + skew.toFixed(2) + 'deg)';
+      mo.style.opacity = cl(pm * 3).toFixed(3);
+    }
+    const sh = this.rSheen.current;
+    if (sh) { const q = pb >= 0 ? cl((pb - 0.12) / 0.6) : seg(1.25, 1.85); sh.style.backgroundPosition = (100 - q * 100).toFixed(1) + '% 0'; }
+
+    [[this.rS1, 1.0], [this.rS2, 1.12]].forEach(([ref, a]) => {
+      const el = ref.current; if (!el) return;
+      const p = eo(seg(a, a + 0.4));
+      el.style.transform = 'translateY(' + ((1 - p) * 70).toFixed(1) + '%)'; el.style.opacity = p.toFixed(3);
+    });
+
+    this.pintar(t, SW, SH);
+  }
+
+  boost(t, SW, SH) {
+    const esc = SW / 600;
+    for (let i = 0; i < 18; i++) {
+      const vermelho = Math.random() < 0.35;
+      this.linhas.push({ t0: t + Math.random() * 0.22, y: SH * (0.08 + Math.random() * 0.86), x: SW * (0.7 + Math.random() * 0.5), len: SW * (0.08 + Math.random() * 0.2), v: SW * (1.5 + Math.random() * 1.1), vida: 0.55 + Math.random() * 0.3, w: Math.max(1, (1 + Math.random() * 1.3) * esc), cor: vermelho ? this.cVermelho : this.cBranco, a: vermelho ? 0.9 : 0.5 });
+    }
+    this.poeira(t, SW, SH, 0, 30, false);
+  }
+  poeira(t, SW, SH, dx, n, pouso) {
+    const esc = SW / 600, x = this.RODA.x * SW + dx, y = this.RODA.y * SH;
+    for (let i = 0; i < n; i++) this.parts.push({ t0: t, x: x + (Math.random() - 0.5) * 0.03 * SW, y: y - Math.random() * 0.02 * SH, vx: SW * (pouso ? -0.55 + Math.random() * 0.8 : -0.9 + Math.random() * 0.7), vy: -SH * (0.08 + Math.random() * (pouso ? 0.25 : 0.4)), gy: SH * 1.1, r: (1 + Math.random() * 2.4) * esc, vida: 0.5 + Math.random() * 0.55 });
+  }
+  pintar(t, SW, SH) {
+    const cv = this.rCanvas.current; if (!cv) return;
+    this.linhas = this.linhas.filter(l => t < l.t0 + l.vida);
+    this.parts = this.parts.filter(p => t < p.t0 + p.vida);
+    const g = cv.getContext('2d');
+    if (!this.linhas.length && !this.parts.length) { if (!this.limpo) { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); this.limpo = true; } return; }
+    const dpr = Math.min(2, window.devicePixelRatio || 1), CW = Math.round(cv.clientWidth * dpr), CH = Math.round(cv.clientHeight * dpr);
+    if (cv.width !== CW || cv.height !== CH) { cv.width = CW; cv.height = CH; }
+    g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, cv.clientWidth, cv.clientHeight);
+    g.translate(0.12 * SW, 0.14 * SH); g.lineCap = 'round';
+    for (const l of this.linhas) {
+      const a = t - l.t0; if (a < 0) continue;
+      const k = a / l.vida, xh = l.x - l.v * a, gr = g.createLinearGradient(xh, 0, xh + l.len, 0);
+      gr.addColorStop(0, l.cor); gr.addColorStop(1, 'transparent');
+      g.globalAlpha = l.a * Math.sin(Math.PI * k); g.strokeStyle = gr; g.lineWidth = l.w;
+      g.beginPath(); g.moveTo(xh, l.y); g.lineTo(xh + l.len, l.y); g.stroke();
+    }
+    g.fillStyle = this.cPo;
+    for (const p of this.parts) {
+      const a = t - p.t0, k = a / p.vida;
+      g.globalAlpha = 0.6 * (1 - k);
+      g.beginPath(); g.arc(p.x + p.vx * a, p.y + p.vy * a + 0.5 * p.gy * a * a, p.r * (1 + 1.5 * k), 0, 6.2832); g.fill();
+    }
+    g.globalAlpha = 1; this.limpo = false;
+  }
+  estadoFinal() {
+    [this.rRider, this.rMotos, this.rS1, this.rS2].forEach(r => { const el = r.current; if (el) { el.style.transform = ''; el.style.opacity = ''; } });
+    [this.rG1, this.rG2, this.rG3].forEach(r => { const el = r.current; if (el) el.style.opacity = '0'; });
+    const gl = this.rGlow.current; if (gl) { gl.style.transform = ''; gl.style.opacity = '0.3'; }
+    const vm = this.rValmor.current; if (vm) { vm.style.maskImage = 'none'; vm.style.webkitMaskImage = 'none'; this.mascara = 'none'; }
+    const sh = this.rSheen.current; if (sh) sh.style.backgroundPosition = '100% 0';
+    this.linhas = []; this.parts = [];
+    const cv = this.rCanvas.current; if (cv) { const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); }
+    this.limpo = true;
+  }
+
+  renderVals() {
+    return { rStage: this.rStage, rCanvas: this.rCanvas, rGlow: this.rGlow, rValmor: this.rValmor, rMotos: this.rMotos, rSheen: this.rSheen, rS1: this.rS1, rS2: this.rS2, rRider: this.rRider, rG1: this.rG1, rG2: this.rG2, rG3: this.rG3 };
+  }
+}
+</script>
+</body>
+</html>
